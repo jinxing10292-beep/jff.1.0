@@ -96,28 +96,24 @@ npm run client
 
 브라우저에서 http://localhost:3000 접속
 
-## 📦 GitHub Pages 배포
+## 📦 배포
 
-### 1. 클라이언트 빌드
+### 빠른 배포 가이드
+
+**상세한 배포 가이드는 `DEPLOYMENT.md` 파일을 참고하세요!**
+
+1. **Supabase 데이터베이스 설정** (1회만)
+2. **백엔드 Vercel 배포** (무료)
+3. **프론트엔드 GitHub Pages 배포** (무료)
+
 ```bash
-npm run build
+# 프론트엔드 배포
+cd client
+npm install
+npm run deploy
 ```
 
-### 2. GitHub Pages 설정
-- Repository Settings > Pages
-- Source: Deploy from a branch
-- Branch: gh-pages / root
-
-### 3. 배포
-```bash
-cd client/build
-git init
-git add .
-git commit -m "Deploy to GitHub Pages"
-git branch -M gh-pages
-git remote add origin https://github.com/yourusername/your-repo.git
-git push -u origin gh-pages --force
-```
+배포 후 접속: https://jinxing10292-beep.github.io/jff.1.0
 
 ## 🛡️ 보안 권장사항
 
