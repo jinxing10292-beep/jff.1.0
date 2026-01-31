@@ -47,6 +47,14 @@ app.use('/api/games', gameRoutes);
 app.use('/api/wallet', walletRoutes);
 
 // Health check
+app.get('/', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    message: 'Casino API Server',
+    timestamp: new Date().toISOString() 
+  });
+});
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
