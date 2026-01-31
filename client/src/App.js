@@ -38,16 +38,16 @@ function App() {
   };
 
   return (
-    <Router>
+    <Router basename="/jff.1.0">
       <div className="App">
         <Routes>
           <Route 
             path="/login" 
-            element={!token ? <Login onLogin={handleLogin} /> : <Navigate to="/dashboard" />} 
+            element={!token ? <Login onLogin={handleLogin} /> : <Navigate to="/games" />} 
           />
           <Route 
             path="/register" 
-            element={!token ? <Register /> : <Navigate to="/dashboard" />} 
+            element={!token ? <Register /> : <Navigate to="/games" />} 
           />
           <Route 
             path="/dashboard" 
@@ -57,7 +57,7 @@ function App() {
             path="/games" 
             element={token ? <GameLobby user={user} token={token} onLogout={handleLogout} /> : <Navigate to="/login" />} 
           />
-          <Route path="/" element={<Navigate to={token ? "/dashboard" : "/login"} />} />
+          <Route path="/" element={<Navigate to="/games" />} />
         </Routes>
       </div>
     </Router>
