@@ -1,6 +1,11 @@
 {
-  "installCommand": "npm install --omit=dev",
-  "buildCommand": "echo 'No build needed'",
+  "version": 2,
+  "builds": [
+    {
+      "src": "server/index.js",
+      "use": "@vercel/node"
+    }
+  ],
   "routes": [
     {
       "src": "/(.*)",
