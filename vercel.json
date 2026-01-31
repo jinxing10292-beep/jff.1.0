@@ -1,13 +1,15 @@
 {
-  "buildCommand": "echo 'No build needed for backend'",
-  "rewrites": [
+  "version": 2,
+  "builds": [
     {
-      "source": "/api/(.*)",
-      "destination": "/server/index.js"
-    },
+      "src": "server/index.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
     {
-      "source": "/(.*)",
-      "destination": "/server/index.js"
+      "src": "/(.*)",
+      "dest": "server/index.js"
     }
   ]
 }
