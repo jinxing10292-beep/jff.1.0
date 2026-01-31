@@ -1,0 +1,10 @@
+node_modules/
+.env
+.env.local
+client/node_modules/
+client/build/
+*.log
+.DS_Store
+dist/
+coverage/
+.vscode/
