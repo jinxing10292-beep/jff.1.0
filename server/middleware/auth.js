@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const db = require('../config/database');
+const { db } = require('../config/database');
 
 const authenticateToken = async (req, res, next) => {
   try {
@@ -13,16 +13,17 @@ const authenticateToken = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     // Verify user still exists and is active
-    const result = await db.query(
-      'SELECT id, username, email, is_active FROM users WHERE id = $1',
-      [decoded.userId]
-    );
+    const user = await db.findUserById(decoded.userId);
 
-    if (result.rows.length === 0 || !result.rows[0].is_active) {
+    if (!user || !user.is_active) {
       return res.status(403).json({ error: 'Invalid or inactive user' });
     }
 
-    req.user = result.rows[0];
+    req.user = {
+      id: user.id,
+      username: user.username,
+      email: user.email
+    };
     next();
   } catch (error) {
     if (error.name === 'TokenExpiredError') {

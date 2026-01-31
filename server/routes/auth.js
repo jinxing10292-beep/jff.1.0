@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const speakeasy = require('speakeasy');
-const db = require('../config/database');
+const { db, supabase } = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
@@ -23,39 +23,28 @@ router.post('/register',
       const { username, email, password } = req.body;
       const passwordHash = await bcrypt.hash(password, 12);
 
-      const client = await db.pool.connect();
-      try {
-        await client.query('BEGIN');
+      // Create user
+      const user = await db.createUser(username, email, passwordHash);
 
-        const userResult = await client.query(
-          'INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id, username, email',
-          [username, email, passwordHash]
-        );
+      // Create wallet
+      await db.createWallet(user.id);
 
-        const userId = userResult.rows[0].id;
+      // Log security event
+      await db.createSecurityLog({
+        user_id: user.id,
+        event_type: 'REGISTER',
+        ip_address: req.ip,
+        user_agent: req.get('user-agent')
+      });
 
-        await client.query(
-          'INSERT INTO wallets (user_id) VALUES ($1)',
-          [userId]
-        );
-
-        await client.query(
-          'INSERT INTO security_logs (user_id, event_type, ip_address, user_agent) VALUES ($1, $2, $3, $4)',
-          [userId, 'REGISTER', req.ip, req.get('user-agent')]
-        );
-
-        await client.query('COMMIT');
-
-        res.status(201).json({
-          message: 'User registered successfully',
-          user: userResult.rows[0],
-        });
-      } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-      } finally {
-        client.release();
-      }
+      res.status(201).json({
+        message: 'User registered successfully',
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email
+        }
+      });
     } catch (error) {
       next(error);
     }
@@ -75,16 +64,11 @@ router.post('/login',
 
       const { username, password, twoFactorCode } = req.body;
 
-      const result = await db.query(
-        'SELECT * FROM users WHERE username = $1',
-        [username]
-      );
+      const user = await db.findUserByUsername(username);
 
-      if (result.rows.length === 0) {
+      if (!user) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
-
-      const user = result.rows[0];
 
       if (user.locked_until && new Date(user.locked_until) > new Date()) {
         return res.status(423).json({ error: 'Account temporarily locked' });
@@ -93,10 +77,13 @@ router.post('/login',
       const validPassword = await bcrypt.compare(password, user.password_hash);
 
       if (!validPassword) {
-        await db.query(
-          'UPDATE users SET failed_login_attempts = failed_login_attempts + 1, locked_until = CASE WHEN failed_login_attempts >= 4 THEN NOW() + INTERVAL \'15 minutes\' ELSE NULL END WHERE id = $1',
-          [user.id]
-        );
+        const newAttempts = (user.failed_login_attempts || 0) + 1;
+        const lockedUntil = newAttempts >= 5 ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : null;
+        
+        await db.updateUser(user.id, {
+          failed_login_attempts: newAttempts,
+          locked_until: lockedUntil
+        });
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
@@ -117,15 +104,18 @@ router.post('/login',
         }
       }
 
-      await db.query(
-        'UPDATE users SET last_login = NOW(), failed_login_attempts = 0, locked_until = NULL WHERE id = $1',
-        [user.id]
-      );
+      await db.updateUser(user.id, {
+        last_login: new Date().toISOString(),
+        failed_login_attempts: 0,
+        locked_until: null
+      });
 
-      await db.query(
-        'INSERT INTO security_logs (user_id, event_type, ip_address, user_agent) VALUES ($1, $2, $3, $4)',
-        [user.id, 'LOGIN', req.ip, req.get('user-agent')]
-      );
+      await db.createSecurityLog({
+        user_id: user.id,
+        event_type: 'LOGIN',
+        ip_address: req.ip,
+        user_agent: req.get('user-agent')
+      });
 
       const token = jwt.sign(
         { userId: user.id, username: user.username },
@@ -152,10 +142,9 @@ router.post('/2fa/enable', authenticateToken, async (req, res, next) => {
   try {
     const secret = speakeasy.generateSecret({ length: 32 });
 
-    await db.query(
-      'UPDATE users SET two_factor_secret = $1 WHERE id = $2',
-      [secret.base32, req.user.id]
-    );
+    await db.updateUser(req.user.id, {
+      two_factor_secret: secret.base32
+    });
 
     res.json({
       secret: secret.base32,
@@ -173,13 +162,10 @@ router.post('/2fa/verify', authenticateToken,
     try {
       const { token } = req.body;
 
-      const result = await db.query(
-        'SELECT two_factor_secret FROM users WHERE id = $1',
-        [req.user.id]
-      );
+      const user = await db.findUserById(req.user.id);
 
       const verified = speakeasy.totp.verify({
-        secret: result.rows[0].two_factor_secret,
+        secret: user.two_factor_secret,
         encoding: 'base32',
         token,
         window: 2,
@@ -189,10 +175,9 @@ router.post('/2fa/verify', authenticateToken,
         return res.status(400).json({ error: 'Invalid code' });
       }
 
-      await db.query(
-        'UPDATE users SET two_factor_enabled = TRUE WHERE id = $1',
-        [req.user.id]
-      );
+      await db.updateUser(req.user.id, {
+        two_factor_enabled: true
+      });
 
       res.json({ message: '2FA enabled successfully' });
     } catch (error) {

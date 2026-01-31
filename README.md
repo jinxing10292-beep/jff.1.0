@@ -42,13 +42,46 @@
 npm run install-all
 ```
 
-### 2. 환경 변수 설정
-`.env.example`을 복사하여 `.env` 파일 생성 후 설정
+### 2. Supabase 설정
 
-### 3. 데이터베이스 설정
-PostgreSQL 데이터베이스 생성 및 스키마 실행:
+#### Supabase 프로젝트 생성
+1. https://supabase.com 접속 및 로그인
+2. 새 프로젝트 생성
+3. Project Settings > API에서 URL과 anon key 확인
+
+#### 데이터베이스 스키마 설정
+1. Supabase Dashboard > SQL Editor 열기
+2. `supabase-setup.sql` 파일 내용 복사
+3. SQL Editor에 붙여넣기 후 실행 (Run)
+
+### 3. 환경 변수 설정
+
+`.env` 파일 생성:
 ```bash
-psql -U your_user -d casino_db -f server/database/schema.sql
+PORT=5000
+NODE_ENV=development
+
+# Supabase Configuration
+SUPABASE_URL=https://fvcektvwqlpznybjbxik.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2Y2VrdHZ3cWxwem55YmpieGlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4MzM1MjIsImV4cCI6MjA4NTQwOTUyMn0.q3G7NOTVcZQ_DYE45CSHHb9CqvhmiBPENvqb3l1yZVQ
+
+# JWT Secret (강력한 랜덤 문자열 생성)
+JWT_SECRET=your_very_strong_secret_key_here_change_this
+
+# Rate Limiting
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+
+# CORS Origin
+CORS_ORIGIN=http://localhost:3000
+
+# 2FA Settings
+TWO_FACTOR_ENABLED=true
+```
+
+**중요**: JWT_SECRET을 강력한 랜덤 문자열로 변경하세요:
+```bash
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 ```
 
 ### 4. 서버 실행
@@ -60,6 +93,8 @@ npm start
 ```bash
 npm run client
 ```
+
+브라우저에서 http://localhost:3000 접속
 
 ## 📦 GitHub Pages 배포
 
